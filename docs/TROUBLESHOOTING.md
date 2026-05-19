@@ -23,6 +23,9 @@ Depending on Raspberry Pi OS and BlueZ policy, the binary may need:
 sudo setcap 'cap_net_raw,cap_net_admin+eip' /opt/airthings-monitor/bin/airthings-server
 ```
 
+If `id airthings` fails, create the service user from the install guide before
+starting the unit.
+
 ## SQLite Database Path Missing
 
 The service deliberately refuses to create the database parent directory. This
@@ -34,6 +37,13 @@ ls -ld /mnt/pihole-usb/airthings
 ```
 
 Create and chown the directory only after verifying the USB drive is mounted.
+If `chown airthings:airthings` reports `invalid user`, create the service user
+first:
+
+```sh
+sudo getent group airthings >/dev/null || sudo groupadd --system airthings
+id -u airthings >/dev/null 2>&1 || sudo useradd --system --gid airthings --home /nonexistent --shell /usr/sbin/nologin airthings
+```
 
 ## Sensor Stale
 
