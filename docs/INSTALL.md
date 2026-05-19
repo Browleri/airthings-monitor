@@ -10,12 +10,78 @@ and Bluetooth:
 
 ```sh
 sudo apt update
-sudo apt install -y git build-essential pkg-config sqlite3 libsqlite3-dev bluetooth bluez
+sudo apt install -y git build-essential pkg-config sqlite3 libsqlite3-dev bluetooth bluez ca-certificates curl gnupg
 ```
 
-Install Go and Node.js using your preferred Raspberry Pi OS method if they are
-not already present. This project expects Go 1.23 or newer. Vite 7 expects a
-modern Node.js runtime; use Node.js 20.19 or newer, or Node.js 22.12 or newer.
+## Go
+
+This project expects Go 1.23 or newer.
+
+First check whether Go is already installed and new enough:
+
+```sh
+go version
+```
+
+If Go is missing or too old, install the current stable Go release from the
+official Go Linux tarball. These commands detect the common Raspberry Pi OS
+architectures:
+
+```sh
+GO_VERSION="$(curl -fsSL 'https://go.dev/VERSION?m=text' | head -n 1)"
+case "$(uname -m)" in
+  aarch64) GO_ARCH="arm64" ;;
+  armv6l|armv7l) GO_ARCH="armv6l" ;;
+  x86_64) GO_ARCH="amd64" ;;
+  *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+
+curl -fsSLo "/tmp/${GO_VERSION}.linux-${GO_ARCH}.tar.gz" \
+  "https://go.dev/dl/${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf "/tmp/${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
+echo 'export PATH=/usr/local/go/bin:$PATH' | sudo tee /etc/profile.d/go.sh
+. /etc/profile.d/go.sh
+go version
+```
+
+Log out and back in, or source `/etc/profile.d/go.sh`, if your shell cannot find
+`go` after installation.
+
+## Node.js
+
+Node.js and npm are only needed to build the React frontend. They are not needed
+at runtime once `web/dist` has been built and copied to `/opt/airthings-monitor`.
+
+Vite 7 expects Node.js 20.19 or newer, or Node.js 22.12 or newer. Check the
+installed version first:
+
+```sh
+node --version
+npm --version
+```
+
+If Raspberry Pi OS already provides a new enough Node.js package, this is enough:
+
+```sh
+sudo apt install -y nodejs npm
+node --version
+npm --version
+```
+
+If the distro package is too old, install Node.js 22 from the NodeSource Debian
+repository:
+
+```sh
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+node --version
+npm --version
+```
+
+If you prefer not to install Node.js on the Pi, build the frontend on another
+machine with a compatible Node.js version and deploy the generated `web/dist`
+directory to the Pi.
 
 ## Service User
 
