@@ -1,0 +1,23 @@
+# Airthings Monitor example configuration.
+# Copy to /etc/airthings-monitor/config.toml and adjust paths/permissions.
+
+sensor_address = "D8:71:4D:AA:78:34"
+sensor_mode = "ble" # "ble" for real hardware, "mock" for local development
+database_path = "/mnt/pihole-usb/airthings/airthings.db"
+listen_address = "0.0.0.0:8080"
+frontend_enabled = true
+frontend_dir = "web/dist"
+log_level = "info"
+
+poll_interval = "1m"
+co2_interval = "1m"
+environment_interval = "5m"
+radon_interval = "60m"
+stale_after = "3m"
+
+sqlite_journal_mode = "WAL"
+sqlite_synchronous = "NORMAL"
+sqlite_busy_timeout = "5s"
+
+retention_days = 400
+retention_cleanup_interval = "24h"

@@ -1,0 +1,36 @@
+[Unit]
+Description=Airthings indoor air monitor
+Documentation=/opt/airthings-monitor/README.md
+After=network-online.target bluetooth.service
+Wants=network-online.target bluetooth.service
+RequiresMountsFor=/mnt/pihole-usb/airthings
+
+[Service]
+Type=simple
+User=airthings
+Group=airthings
+WorkingDirectory=/opt/airthings-monitor
+ExecStart=/opt/airthings-monitor/bin/airthings-server -config /etc/airthings-monitor/config.toml
+Restart=on-failure
+RestartSec=10
+
+# Logs go to journald. On this Pi, /var/log is expected to be handled by log2ram.
+StandardOutput=journal
+StandardError=journal
+
+# Bluetooth access usually requires either running with suitable group
+# permissions or granting capabilities to the built binary, for example:
+#   sudo setcap 'cap_net_raw,cap_net_admin+eip' /opt/airthings-monitor/bin/airthings-server
+# Some Raspberry Pi OS/BlueZ setups may still require membership in bluetooth
+# and dialout groups or a small udev/polkit adjustment.
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+NoNewPrivileges=true
+
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/mnt/pihole-usb/airthings
+
+[Install]
+WantedBy=multi-user.target
