@@ -7,6 +7,35 @@
 - Scan nearby devices: `bluetoothctl scan on`.
 - Move the Pi closer to the sensor and retry.
 
+## BlueZ Device Missing After Reboot
+
+If logs contain an error like:
+
+```text
+Method "Get" with signature "ss" on interface "org.freedesktop.DBus.Properties" doesn't exist
+```
+
+and `bluetoothctl info D8:71:4D:AA:78:34` says `Device not available`, BlueZ has
+not created a device object for the sensor yet. This can happen after reboot.
+
+The service discovery flow is designed to handle this by powering the adapter,
+starting BLE discovery, waiting for the configured MAC address to appear,
+connecting to the discovered device, waiting for services to resolve, reading
+the measurement characteristic, and disconnecting.
+
+Useful checks:
+
+```sh
+bluetoothctl show
+bluetoothctl scan on
+bluetoothctl info D8:71:4D:AA:78:34
+busctl tree org.bluez
+journalctl -u airthings.service -n 100 --no-pager
+```
+
+During a healthy read, logs should show discovery start, target discovered,
+connection attempt, services resolved, characteristic read, and disconnect.
+
 ## Permission Denied On BLE
 
 Check the service user and capabilities:

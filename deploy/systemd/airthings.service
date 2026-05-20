@@ -1,6 +1,6 @@
 [Unit]
 Description=Airthings indoor air monitor
-Documentation=/opt/airthings-monitor/README.md
+Documentation=file:/opt/airthings-monitor/README.md
 After=network-online.target bluetooth.service
 Wants=network-online.target bluetooth.service
 RequiresMountsFor=/mnt/pihole-usb/airthings

@@ -12,6 +12,10 @@ curl http://127.0.0.1:8080/api/status
 `/healthz` reports that the process is running. `/api/status` reports sensor
 freshness, the last successful read time, and the last error.
 
+For BLE debugging after reboot, recent logs should include the read flow:
+adapter enabled, discovery start, target discovered, connection attempt,
+services resolved, characteristic read, disconnect, or a clear retry reason.
+
 ## Logging
 
 The application writes compact structured logs to stdout/stderr. Do not add

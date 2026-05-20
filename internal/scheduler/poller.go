@@ -129,7 +129,7 @@ func (p *Poller) recordFailure(msg string, err error) {
 	p.status.LastError = err.Error()
 	p.status.ConsecutiveFailures++
 	p.mu.Unlock()
-	p.logger.Error(msg, "error", err)
+	p.logger.Error(msg, "error", err, "retry_after", p.pollEvery)
 }
 
 func (p *Poller) recordSuccess(now time.Time) {

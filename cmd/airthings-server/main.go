@@ -45,7 +45,7 @@ func main() {
 		logger.Warn("using mock sensor client")
 		sensor = airthings.NewMockClient()
 	default:
-		sensor = airthings.NewBLEClient(cfg.SensorAddress, 30*time.Second)
+		sensor = airthings.NewBLEClient(cfg.SensorAddress, 30*time.Second, logger)
 	}
 
 	retention := time.Duration(0)
