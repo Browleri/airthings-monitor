@@ -157,6 +157,10 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
+func (s *Store) Ping(ctx context.Context) error {
+	return s.db.PingContext(ctx)
+}
+
 func (s *Store) InsertReading(ctx context.Context, r scheduler.SampledReading) error {
 	_, err := s.db.ExecContext(ctx, `
 INSERT INTO readings (

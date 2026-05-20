@@ -17,6 +17,7 @@ import (
 
 type Store interface {
 	Current(ctx context.Context) (db.Current, error)
+	Ping(ctx context.Context) error
 	Readings(ctx context.Context, metric string, since time.Time) ([]db.MetricPoint, error)
 	Summary(ctx context.Context, since time.Time) ([]db.MetricSummary, error)
 }
@@ -84,7 +85,20 @@ func (s *Server) current(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, current)
+	status := s.statusProvider.Status()
+	stale := sensorStale(status.LastSuccessAt, s.staleAfter, time.Now())
+	writeJSON(w, http.StatusOK, map[string]any{
+		"co2_ppm":              current.CO2PPM,
+		"voc_ppb":              current.VOCppb,
+		"temperature_c":        current.TemperatureC,
+		"humidity_percent":     current.HumidityPercent,
+		"pressure_hpa":         current.PressureHPa,
+		"radon_short_bqm3":     current.RadonShortBqm3,
+		"radon_long_bqm3":      current.RadonLongBqm3,
+		"last_read_at":         current.LastReadAt,
+		"last_successful_read": status.LastSuccessAt,
+		"sensor_stale":         stale,
+	})
 }
 
 func (s *Server) readings(w http.ResponseWriter, r *http.Request) {
@@ -128,21 +142,45 @@ func (s *Server) summary(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	status := s.statusProvider.Status()
-	stale := true
-	if status.LastSuccessAt != nil {
-		stale = time.Since(*status.LastSuccessAt) > s.staleAfter
+	databaseOK := true
+	databaseErr := ""
+	if err := s.store.Ping(r.Context()); err != nil {
+		databaseOK = false
+		databaseErr = err.Error()
+	}
+	stale := sensorStale(status.LastSuccessAt, s.staleAfter, time.Now())
+	bluetoothOK := status.LastErrorKind != "sensor"
+	var retryDelaySeconds *int
+	if status.LastRetryDelay != nil {
+		seconds := int(status.LastRetryDelay.Seconds())
+		retryDelaySeconds = &seconds
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":                   true,
-		"sensor_address":       s.sensorAddress,
-		"database_path":        s.databasePath,
-		"stale":                stale,
-		"stale_after_seconds":  int(s.staleAfter.Seconds()),
-		"last_success_at":      status.LastSuccessAt,
-		"last_attempt_at":      status.LastAttemptAt,
-		"last_error":           status.LastError,
-		"consecutive_failures": status.ConsecutiveFailures,
+		"ok":                       true,
+		"sensor_stale":             stale,
+		"stale":                    stale,
+		"sensor_address":           s.sensorAddress,
+		"database_path":            s.databasePath,
+		"stale_after_seconds":      int(s.staleAfter.Seconds()),
+		"last_successful_read":     status.LastSuccessAt,
+		"last_success_at":          status.LastSuccessAt,
+		"last_attempt_at":          status.LastAttemptAt,
+		"last_error":               status.LastError,
+		"last_error_at":            status.LastErrorAt,
+		"last_error_kind":          status.LastErrorKind,
+		"last_retry_delay_seconds": retryDelaySeconds,
+		"consecutive_failures":     status.ConsecutiveFailures,
+		"database_ok":              databaseOK,
+		"database_error":           databaseErr,
+		"bluetooth_ok":             bluetoothOK,
 	})
+}
+
+func sensorStale(lastSuccess *time.Time, threshold time.Duration, now time.Time) bool {
+	if lastSuccess == nil {
+		return true
+	}
+	return now.Sub(*lastSuccess) > threshold
 }
 
 func (s *Server) frontend(w http.ResponseWriter, r *http.Request) {

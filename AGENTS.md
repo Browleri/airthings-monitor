@@ -23,6 +23,8 @@ quiet, and operationally conservative.
 - Logs go to stdout/stderr for systemd/journald and log2ram.
 - Avoid noisy file logging.
 - Keep polling and retention cleanup intervals configurable.
+- Keep retry jitter configurable; avoid fixed retry loops that can repeatedly
+  collide with transient Bluetooth timing failures.
 - Keep write frequency intentional: CO2 every minute, environment every five
   minutes, radon every sixty minutes by default.
 
@@ -48,3 +50,6 @@ quiet, and operationally conservative.
 - Keep resource use appropriate for a Raspberry Pi 3B+.
 - Bluetooth permissions are deployment-sensitive; document them rather than
   hiding them in code.
+- The current BLE implementation is Go-only. Do not add a Python helper unless
+  the Go/BlueZ path is shown to be unreliable and the fallback is clearly
+  isolated.

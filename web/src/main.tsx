@@ -11,17 +11,25 @@ type Current = {
   radon_short_bqm3: number | null
   radon_long_bqm3: number | null
   last_read_at: string | null
+  last_successful_read?: string | null
+  sensor_stale?: boolean
 }
 
 type Status = {
   ok: boolean
+  sensor_stale: boolean
   sensor_address: string
   database_path: string
   stale: boolean
   stale_after_seconds: number
+  last_successful_read: string | null
   last_success_at: string | null
   last_attempt_at: string | null
   last_error?: string
+  last_error_at?: string | null
+  last_retry_delay_seconds?: number | null
+  database_ok: boolean
+  bluetooth_ok: boolean
   consecutive_failures: number
 }
 
@@ -106,7 +114,7 @@ function App() {
     }
   }, [metric, range])
 
-  const stale = status?.stale ?? true
+  const stale = status?.sensor_stale ?? status?.stale ?? current?.sensor_stale ?? true
   const metricCards = useMemo(() => Object.entries(metrics) as [MetricKey, (typeof metrics)[MetricKey]][], [])
 
   return (
@@ -120,7 +128,17 @@ function App() {
       </header>
 
       {error && <div className="notice">{error}</div>}
-      {status?.last_error && <div className="notice">Last error: {status.last_error}</div>}
+      {stale && (
+        <div className="notice">
+          Sensor data is stale. Last successful read: {formatDate(status?.last_successful_read ?? status?.last_success_at ?? current?.last_successful_read ?? current?.last_read_at)}
+        </div>
+      )}
+      {status?.last_error && (
+        <div className="notice muted">
+          Last error{status.last_error_at ? ` at ${formatDate(status.last_error_at)}` : ''}: {status.last_error}
+          {status.last_retry_delay_seconds ? ` Retrying in about ${status.last_retry_delay_seconds}s.` : ''}
+        </div>
+      )}
 
       <section className="metric-grid">
         {metricCards.map(([key, meta]) => (
@@ -157,11 +175,15 @@ function App() {
       <section className="details">
         <div>
           <span>Last successful read</span>
-          <strong>{formatDate(status?.last_success_at ?? current?.last_read_at)}</strong>
+          <strong>{formatDate(status?.last_successful_read ?? status?.last_success_at ?? current?.last_successful_read ?? current?.last_read_at)}</strong>
         </div>
         <div>
           <span>Last attempt</span>
           <strong>{formatDate(status?.last_attempt_at)}</strong>
+        </div>
+        <div>
+          <span>Service checks</span>
+          <strong>{formatChecks(status)}</strong>
         </div>
         <div>
           <span>Database</span>
@@ -228,6 +250,13 @@ function formatDate(value?: string | null) {
     hour: '2-digit',
     minute: '2-digit'
   }).format(new Date(value))
+}
+
+function formatChecks(status: Status | null) {
+  if (!status) return 'Unknown'
+  const database = status.database_ok ? 'DB ok' : 'DB issue'
+  const bluetooth = status.bluetooth_ok ? 'BLE ok' : 'BLE retrying'
+  return `${database}, ${bluetooth}`
 }
 
 createRoot(document.getElementById('root')!).render(

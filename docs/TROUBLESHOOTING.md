@@ -36,6 +36,9 @@ journalctl -u airthings.service -n 100 --no-pager
 During a healthy read, logs should show discovery start, target discovered,
 connection attempt, services resolved, characteristic read, and disconnect.
 
+Intermittent BLE errors such as `le-connection-abort-by-local` can happen. They
+are logged with a retry delay and retried automatically.
+
 ## Permission Denied On BLE
 
 Check the service user and capabilities:
@@ -43,6 +46,7 @@ Check the service user and capabilities:
 ```sh
 getcap /opt/airthings-monitor/bin/airthings-server
 id airthings
+journalctl -u airthings.service -f
 journalctl -u airthings.service -n 100 --no-pager
 ```
 
@@ -76,13 +80,21 @@ id -u airthings >/dev/null 2>&1 || sudo useradd --system --gid airthings --home 
 
 ## Sensor Stale
 
-`/api/status` reports `stale = true` when the last successful read is older than
-`stale_after`. Check:
+`/api/status` reports `sensor_stale = true` when the last successful read is
+older than `stale_after`. The frontend shows a warning but the service stays
+running and keeps retrying. Check:
 
 - sensor battery
 - distance from Pi
 - Bluetooth service health
 - recent logs in `journalctl -u airthings.service`
+
+Useful Bluetooth checks:
+
+```sh
+rfkill list
+bluetoothctl info D8:71:4D:AA:78:34
+```
 
 ## Service Starts Before Bluetooth Is Ready
 

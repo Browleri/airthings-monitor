@@ -45,7 +45,13 @@ func main() {
 		logger.Warn("using mock sensor client")
 		sensor = airthings.NewMockClient()
 	default:
-		sensor = airthings.NewBLEClient(cfg.SensorAddress, 30*time.Second, logger)
+		sensor = airthings.NewBLEClient(cfg.SensorAddress, airthings.BLEOptions{
+			DiscoveryTimeout:  cfg.BLEDiscoveryTimeout,
+			ConnectTimeout:    cfg.BLEConnectTimeout,
+			ServicesTimeout:   cfg.BLEServicesTimeout,
+			ReadTimeout:       cfg.BLEReadTimeout,
+			DisconnectTimeout: cfg.BLEDisconnectTimeout,
+		}, logger)
 	}
 
 	retention := time.Duration(0)
@@ -54,6 +60,10 @@ func main() {
 	}
 	poller := scheduler.NewPoller(sensor, store, scheduler.PollerConfig{
 		PollEvery: cfg.PollInterval,
+		RetryJitter: scheduler.RetryJitter{
+			Min: cfg.MinRetryDelay,
+			Max: cfg.MaxRetryDelay,
+		},
 		Intervals: scheduler.Intervals{
 			CO2:         cfg.CO2Interval,
 			Environment: cfg.EnvironmentInterval,

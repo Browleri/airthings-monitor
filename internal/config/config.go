@@ -19,10 +19,17 @@ type Config struct {
 	FrontendDir              string        `toml:"frontend_dir"`
 	LogLevel                 string        `toml:"log_level"`
 	PollInterval             time.Duration `toml:"poll_interval"`
+	MinRetryDelay            time.Duration `toml:"min_retry_delay"`
+	MaxRetryDelay            time.Duration `toml:"max_retry_delay"`
 	CO2Interval              time.Duration `toml:"co2_interval"`
 	EnvironmentInterval      time.Duration `toml:"environment_interval"`
 	RadonInterval            time.Duration `toml:"radon_interval"`
 	StaleAfter               time.Duration `toml:"stale_after"`
+	BLEDiscoveryTimeout      time.Duration `toml:"ble_discovery_timeout"`
+	BLEConnectTimeout        time.Duration `toml:"ble_connect_timeout"`
+	BLEServicesTimeout       time.Duration `toml:"ble_services_timeout"`
+	BLEReadTimeout           time.Duration `toml:"ble_read_timeout"`
+	BLEDisconnectTimeout     time.Duration `toml:"ble_disconnect_timeout"`
 	SQLiteJournalMode        string        `toml:"sqlite_journal_mode"`
 	SQLiteSynchronous        string        `toml:"sqlite_synchronous"`
 	SQLiteBusyTimeout        time.Duration `toml:"sqlite_busy_timeout"`
@@ -34,16 +41,23 @@ func Defaults() Config {
 	return Config{
 		SensorAddress:            "D8:71:4D:AA:78:34",
 		SensorMode:               "ble",
-		DatabasePath:             "/mnt/usb/airthings/airthings.db",
+		DatabasePath:             "/mnt/pihole-usb/airthings/airthings.db",
 		ListenAddress:            "0.0.0.0:8080",
 		FrontendEnabled:          true,
 		FrontendDir:              "web/dist",
 		LogLevel:                 "info",
 		PollInterval:             time.Minute,
+		MinRetryDelay:            45 * time.Second,
+		MaxRetryDelay:            90 * time.Second,
 		CO2Interval:              time.Minute,
 		EnvironmentInterval:      5 * time.Minute,
 		RadonInterval:            time.Hour,
-		StaleAfter:               3 * time.Minute,
+		StaleAfter:               10 * time.Minute,
+		BLEDiscoveryTimeout:      20 * time.Second,
+		BLEConnectTimeout:        20 * time.Second,
+		BLEServicesTimeout:       15 * time.Second,
+		BLEReadTimeout:           5 * time.Second,
+		BLEDisconnectTimeout:     5 * time.Second,
 		SQLiteJournalMode:        "WAL",
 		SQLiteSynchronous:        "NORMAL",
 		SQLiteBusyTimeout:        5 * time.Second,
@@ -86,8 +100,20 @@ func (c Config) Validate() error {
 	if c.PollInterval <= 0 {
 		return errors.New("poll_interval must be positive")
 	}
+	if c.MinRetryDelay <= 0 || c.MaxRetryDelay <= 0 {
+		return errors.New("retry delays must be positive")
+	}
+	if c.MinRetryDelay > c.MaxRetryDelay {
+		return errors.New("min_retry_delay cannot be greater than max_retry_delay")
+	}
 	if c.CO2Interval <= 0 || c.EnvironmentInterval <= 0 || c.RadonInterval <= 0 {
 		return errors.New("sampling intervals must be positive")
+	}
+	if c.StaleAfter <= 0 {
+		return errors.New("stale_after must be positive")
+	}
+	if c.BLEDiscoveryTimeout <= 0 || c.BLEConnectTimeout <= 0 || c.BLEServicesTimeout <= 0 || c.BLEReadTimeout <= 0 || c.BLEDisconnectTimeout <= 0 {
+		return errors.New("BLE timeouts must be positive")
 	}
 	if c.SQLiteBusyTimeout <= 0 {
 		return errors.New("sqlite_busy_timeout must be positive")

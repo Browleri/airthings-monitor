@@ -189,3 +189,6 @@ sudo systemctl status airthings.service
 ```
 
 Open `http://<pi-address>:8080`.
+
+For later rebuilds after pulling repository updates, use the update workflow in
+[OPERATIONS.md](OPERATIONS.md).

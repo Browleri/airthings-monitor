@@ -88,9 +88,17 @@ sensor_address = "D8:71:4D:AA:78:34"
 database_path = "/mnt/pihole-usb/airthings/airthings.db"
 listen_address = "0.0.0.0:8080"
 poll_interval = "1m"
+min_retry_delay = "45s"
+max_retry_delay = "90s"
 co2_interval = "1m"
 environment_interval = "5m"
 radon_interval = "60m"
+stale_after = "10m"
+ble_discovery_timeout = "20s"
+ble_connect_timeout = "20s"
+ble_services_timeout = "15s"
+ble_read_timeout = "5s"
+ble_disconnect_timeout = "5s"
 sqlite_journal_mode = "WAL"
 sqlite_synchronous = "NORMAL"
 ```
@@ -108,6 +116,10 @@ Supported ranges are `1h`, `24h`, `7d`, and `30d`.
 Supported metrics are `co2`, `voc`, `temperature`, `humidity`, `pressure`,
 `radon_short`, and `radon_long`.
 
+`/api/status` includes `sensor_stale`, `last_successful_read`, `last_error`,
+`last_error_at`, `database_ok`, and `bluetooth_ok` so the frontend can show
+degraded sensor state without treating the HTTP service as unhealthy.
+
 ## Deployment
 
 See [docs/INSTALL.md](docs/INSTALL.md) for Raspberry Pi installation steps and
@@ -117,6 +129,9 @@ systemd unit.
 The service is intended to run as a non-root `airthings` user. Bluetooth access
 usually requires capabilities on the binary or suitable BlueZ policy/group
 configuration.
+
+After pulling repository updates on the Pi, rebuild and restart with the
+workflow in [docs/OPERATIONS.md](docs/OPERATIONS.md#updating-the-service).
 
 ## Operations
 
@@ -140,6 +155,13 @@ The first version uses `tinygo.org/x/bluetooth` directly from Go. The BLE client
 is isolated behind the `airthings.Client` interface, so a small helper process
 could be added later if a particular Raspberry Pi OS/BlueZ combination proves
 unreliable.
+
+The current implementation is Go-only and no Python helper is needed. On each
+sensor read, the service discovers the configured MAC address before connecting
+so BlueZ has a device object after reboot. Intermittent BLE failures such as
+`le-connection-abort-by-local` are expected on Raspberry Pi/BlueZ setups and are
+retried automatically with jitter between `min_retry_delay` and
+`max_retry_delay`.
 
 ## License
 
