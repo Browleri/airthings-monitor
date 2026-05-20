@@ -2,27 +2,35 @@ APP := airthings-server
 BIN_DIR := bin
 CONFIG ?= config.example.toml
 GO ?= go
-GOCACHE ?= /tmp/airthings-go-build-cache
-GOMODCACHE ?= /tmp/go-mod
-GOENV := GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE)
 
-.PHONY: test build web-build run lint clean
+CACHE_ROOT ?= /mnt/pihole-usb/airthings/cache
+GOCACHE ?= $(CACHE_ROOT)/go-build
+GOMODCACHE ?= $(CACHE_ROOT)/go-mod
+GOFLAGS ?= -p 1
+GOMAXPROCS ?= 2
 
-test:
-	$(GOENV) $(GO) test ./...
+GOENV := GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) GOMAXPROCS=$(GOMAXPROCS)
+
+.PHONY: test build web-build run lint clean prepare-cache
+
+prepare-cache:
+	mkdir -p $(GOCACHE) $(GOMODCACHE)
+
+test: prepare-cache
+	$(GOENV) $(GO) test $(GOFLAGS) ./...
 
 build: web-build
 	mkdir -p $(BIN_DIR)
-	$(GOENV) $(GO) build -o $(BIN_DIR)/$(APP) ./cmd/airthings-server
+	$(GOENV) $(GO) build $(GOFLAGS) -o $(BIN_DIR)/$(APP) ./cmd/airthings-server
 
 web-build:
 	cd web && npm install && npm run build
 
-run:
-	$(GOENV) $(GO) run ./cmd/airthings-server -config $(CONFIG)
+run: prepare-cache
+	$(GOENV) $(GO) run $(GOFLAGS) ./cmd/airthings-server -config $(CONFIG)
 
-lint:
-	$(GOENV) $(GO) vet ./...
+lint: prepare-cache
+	$(GOENV) $(GO) vet $(GOFLAGS) ./...
 	cd web && npm install && npm run typecheck
 
 clean:

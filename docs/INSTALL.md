@@ -113,6 +113,8 @@ make test
 make build
 ```
 
+On Raspberry Pi, do not place GOCACHE or GOMODCACHE under /tmp because /tmp is tmpfs/RAM-backed. Use /mnt/pihole-usb/airthings/cache instead.
+
 The web build is copied into `web/dist`, and the Go service serves that directory.
 
 ## Configuration
