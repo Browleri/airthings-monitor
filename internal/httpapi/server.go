@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/browler/airthings-monitor/internal/config"
 	"github.com/browler/airthings-monitor/internal/db"
 	"github.com/browler/airthings-monitor/internal/scheduler"
 )
@@ -33,6 +34,7 @@ type Server struct {
 	sensorAddress   string
 	databasePath    string
 	staleAfter      time.Duration
+	thresholds      config.Thresholds
 	frontendEnabled bool
 	frontendDir     string
 	mux             *http.ServeMux
@@ -42,6 +44,7 @@ type Options struct {
 	SensorAddress   string
 	DatabasePath    string
 	StaleAfter      time.Duration
+	Thresholds      config.Thresholds
 	FrontendEnabled bool
 	FrontendDir     string
 }
@@ -54,6 +57,7 @@ func New(store Store, statusProvider StatusProvider, logger *slog.Logger, opts O
 		sensorAddress:   opts.SensorAddress,
 		databasePath:    opts.DatabasePath,
 		staleAfter:      opts.StaleAfter,
+		thresholds:      opts.Thresholds,
 		frontendEnabled: opts.FrontendEnabled,
 		frontendDir:     opts.FrontendDir,
 		mux:             http.NewServeMux(),
@@ -72,6 +76,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/readings", s.readings)
 	s.mux.HandleFunc("GET /api/summary", s.summary)
 	s.mux.HandleFunc("GET /api/status", s.status)
+	s.mux.HandleFunc("GET /api/thresholds", s.thresholdsHandler)
 	s.mux.HandleFunc("/", s.frontend)
 }
 
@@ -173,6 +178,16 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		"database_ok":              databaseOK,
 		"database_error":           databaseErr,
 		"bluetooth_ok":             bluetoothOK,
+	})
+}
+
+func (s *Server) thresholdsHandler(w http.ResponseWriter, r *http.Request) {
+	thresholds := s.thresholds
+	if thresholds == nil {
+		thresholds = config.Thresholds{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"metrics": thresholds,
 	})
 }
 

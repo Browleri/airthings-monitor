@@ -77,6 +77,7 @@ func main() {
 		SensorAddress:   cfg.SensorAddress,
 		DatabasePath:    cfg.DatabasePath,
 		StaleAfter:      cfg.StaleAfter,
+		Thresholds:      cfg.Thresholds,
 		FrontendEnabled: cfg.FrontendEnabled,
 		FrontendDir:     cfg.FrontendDir,
 	})

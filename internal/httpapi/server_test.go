@@ -10,6 +10,7 @@ import (
 
 	"log/slog"
 
+	"github.com/browler/airthings-monitor/internal/config"
 	"github.com/browler/airthings-monitor/internal/db"
 	"github.com/browler/airthings-monitor/internal/scheduler"
 )
@@ -125,6 +126,36 @@ func TestStatusHandlerResponseShape(t *testing.T) {
 	}
 	if body["last_retry_delay_seconds"].(float64) != 55 {
 		t.Fatalf("last_retry_delay_seconds = %v, want 55", body["last_retry_delay_seconds"])
+	}
+}
+
+func TestThresholdsHandler(t *testing.T) {
+	max := 1000.0
+	server := New(fakeStore{}, fakeStatus{}, slog.Default(), Options{
+		Thresholds: config.Thresholds{
+			"co2": {{Level: "good", Max: &max}},
+		},
+		StaleAfter: time.Minute,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/thresholds", nil)
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body struct {
+		Metrics map[string][]config.ThresholdBand `json:"metrics"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got := body.Metrics["co2"][0].Level; got != "good" {
+		t.Fatalf("co2 level = %q, want good", got)
+	}
+	if body.Metrics["co2"][0].Max == nil || *body.Metrics["co2"][0].Max != 1000 {
+		t.Fatalf("co2 max = %v, want 1000", body.Metrics["co2"][0].Max)
 	}
 }
 

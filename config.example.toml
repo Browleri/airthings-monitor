@@ -29,3 +29,42 @@ sqlite_busy_timeout = "5s"
 
 retention_days = 400
 retention_cleanup_interval = "24h"
+
+# Thresholds drive the frontend graph bands. Pressure is intentionally omitted:
+# it is useful trend data, but not directly a good/bad/critical indoor-air
+# quality metric.
+[thresholds]
+co2 = [
+  { level = "good", max = 1000 },
+  { level = "bad", min = 1000, max = 1500 },
+  { level = "critical", min = 1500 },
+]
+voc = [
+  { level = "good", max = 250 },
+  { level = "bad", min = 250, max = 2000 },
+  { level = "critical", min = 2000 },
+]
+temperature = [
+  { level = "critical", max = 15 },
+  { level = "bad", min = 15, max = 18 },
+  { level = "good", min = 18, max = 25 },
+  { level = "bad", min = 25, max = 28 },
+  { level = "critical", min = 28 },
+]
+humidity = [
+  { level = "critical", max = 20 },
+  { level = "bad", min = 20, max = 30 },
+  { level = "good", min = 30, max = 60 },
+  { level = "bad", min = 60, max = 70 },
+  { level = "critical", min = 70 },
+]
+radon_short = [
+  { level = "good", max = 75 },
+  { level = "bad", min = 75, max = 150 },
+  { level = "critical", min = 150 },
+]
+radon_long = [
+  { level = "good", max = 75 },
+  { level = "bad", min = 75, max = 150 },
+  { level = "critical", min = 150 },
+]

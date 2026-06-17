@@ -35,6 +35,15 @@ type Config struct {
 	SQLiteBusyTimeout        time.Duration `toml:"sqlite_busy_timeout"`
 	RetentionDays            int           `toml:"retention_days"`
 	RetentionCleanupInterval time.Duration `toml:"retention_cleanup_interval"`
+	Thresholds               Thresholds    `toml:"thresholds"`
+}
+
+type Thresholds map[string][]ThresholdBand
+
+type ThresholdBand struct {
+	Level string   `toml:"level" json:"level"`
+	Min   *float64 `toml:"min" json:"min,omitempty"`
+	Max   *float64 `toml:"max" json:"max,omitempty"`
 }
 
 func Defaults() Config {
@@ -63,6 +72,7 @@ func Defaults() Config {
 		SQLiteBusyTimeout:        5 * time.Second,
 		RetentionDays:            400,
 		RetentionCleanupInterval: 24 * time.Hour,
+		Thresholds:               defaultThresholds(),
 	}
 }
 
@@ -124,6 +134,9 @@ func (c Config) Validate() error {
 	if c.RetentionCleanupInterval <= 0 {
 		return errors.New("retention_cleanup_interval must be positive")
 	}
+	if err := c.Thresholds.Validate(); err != nil {
+		return err
+	}
 
 	journal := strings.ToUpper(c.SQLiteJournalMode)
 	if journal != "WAL" {
@@ -134,4 +147,71 @@ func (c Config) Validate() error {
 		return fmt.Errorf("sqlite_synchronous must be NORMAL, FULL, or OFF, got %q", c.SQLiteSynchronous)
 	}
 	return nil
+}
+
+func (t Thresholds) Validate() error {
+	for metric, bands := range t {
+		switch metric {
+		case "co2", "voc", "temperature", "humidity", "radon_short", "radon_long":
+		default:
+			return fmt.Errorf("thresholds.%s is not supported", metric)
+		}
+		for index, band := range bands {
+			switch band.Level {
+			case "good", "bad", "critical":
+			default:
+				return fmt.Errorf("thresholds.%s[%d].level must be good, bad, or critical", metric, index)
+			}
+			if band.Min == nil && band.Max == nil {
+				return fmt.Errorf("thresholds.%s[%d] must set min or max", metric, index)
+			}
+			if band.Min != nil && band.Max != nil && *band.Min >= *band.Max {
+				return fmt.Errorf("thresholds.%s[%d].min must be less than max", metric, index)
+			}
+		}
+	}
+	return nil
+}
+
+func defaultThresholds() Thresholds {
+	return Thresholds{
+		"co2": {
+			{Level: "good", Max: floatPtr(1000)},
+			{Level: "bad", Min: floatPtr(1000), Max: floatPtr(1500)},
+			{Level: "critical", Min: floatPtr(1500)},
+		},
+		"voc": {
+			{Level: "good", Max: floatPtr(250)},
+			{Level: "bad", Min: floatPtr(250), Max: floatPtr(2000)},
+			{Level: "critical", Min: floatPtr(2000)},
+		},
+		"temperature": {
+			{Level: "critical", Max: floatPtr(15)},
+			{Level: "bad", Min: floatPtr(15), Max: floatPtr(18)},
+			{Level: "good", Min: floatPtr(18), Max: floatPtr(25)},
+			{Level: "bad", Min: floatPtr(25), Max: floatPtr(28)},
+			{Level: "critical", Min: floatPtr(28)},
+		},
+		"humidity": {
+			{Level: "critical", Max: floatPtr(20)},
+			{Level: "bad", Min: floatPtr(20), Max: floatPtr(30)},
+			{Level: "good", Min: floatPtr(30), Max: floatPtr(60)},
+			{Level: "bad", Min: floatPtr(60), Max: floatPtr(70)},
+			{Level: "critical", Min: floatPtr(70)},
+		},
+		"radon_short": {
+			{Level: "good", Max: floatPtr(75)},
+			{Level: "bad", Min: floatPtr(75), Max: floatPtr(150)},
+			{Level: "critical", Min: floatPtr(150)},
+		},
+		"radon_long": {
+			{Level: "good", Max: floatPtr(75)},
+			{Level: "bad", Min: floatPtr(75), Max: floatPtr(150)},
+			{Level: "critical", Min: floatPtr(150)},
+		},
+	}
+}
+
+func floatPtr(value float64) *float64 {
+	return &value
 }
