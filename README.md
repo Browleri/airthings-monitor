@@ -45,17 +45,25 @@ Verified sensor details:
 
 ## Quick Start
 
+For Debian/Ubuntu development, start with
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). For Raspberry Pi deployment, use
+[docs/INSTALL.md](docs/INSTALL.md).
+
 ```sh
 cp config.example.toml config.toml
+mkdir -p "$HOME/.local/share/airthings-monitor"
 ```
 
 For local development without BLE hardware, set:
 
 ```toml
 sensor_mode = "mock"
-database_path = "./airthings.dev.db"
+database_path = "/home/you/.local/share/airthings-monitor/airthings.dev.db"
 listen_address = "127.0.0.1:8080"
 ```
+
+Replace `/home/you` with your actual home directory path. The config parser does
+not expand `~` or environment variables.
 
 Then run:
 
@@ -103,6 +111,11 @@ sqlite_journal_mode = "WAL"
 sqlite_synchronous = "NORMAL"
 ```
 
+Graph threshold bands are configured in the `[thresholds]` section. Defaults
+are included for CO2, VOC, temperature, humidity, and radon. Pressure is
+intentionally omitted because it is useful trend data rather than a direct
+good/bad/critical indoor-air quality metric.
+
 ## API
 
 - `GET /healthz`
@@ -110,6 +123,7 @@ sqlite_synchronous = "NORMAL"
 - `GET /api/current`
 - `GET /api/readings?metric=co2&range=24h`
 - `GET /api/summary?range=7d`
+- `GET /api/thresholds`
 
 Supported ranges are `1h`, `24h`, `7d`, and `30d`.
 
@@ -120,9 +134,13 @@ Supported metrics are `co2`, `voc`, `temperature`, `humidity`, `pressure`,
 `last_error_at`, `database_ok`, and `bluetooth_ok` so the frontend can show
 degraded sensor state without treating the HTTP service as unhealthy.
 
+The frontend graphs use timestamp-based x-axis spacing, visible axis values,
+configurable green/yellow/red threshold bands, and hover details with local
+date, time, and measured value.
+
 ## Deployment
 
-See [docs/INSTALL.md](docs/INSTALL.md) for Raspberry Pi installation steps and
+See [docs/INSTALL.md](docs/INSTALL.md) for Raspberry Pi deployment steps and
 [deploy/systemd/airthings.service](deploy/systemd/airthings.service) for the
 systemd unit.
 
@@ -132,6 +150,8 @@ configuration.
 
 After pulling repository updates on the Pi, rebuild and restart with the
 workflow in [docs/OPERATIONS.md](docs/OPERATIONS.md#updating-the-service).
+For routine on-Pi deployment after prerequisites are in place, use
+`scripts/deploy-local.sh`.
 
 ## Operations
 

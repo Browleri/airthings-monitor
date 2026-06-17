@@ -1,7 +1,11 @@
-# Install
+# Raspberry Pi Deployment
 
 These notes assume Raspberry Pi OS Lite on a Raspberry Pi 3B+ that already runs
-Pi-hole. The service does not require Docker.
+Pi-hole. They cover production-style deployment on the Pi, not day-to-day Linux
+development. For a Debian/Ubuntu development setup, see
+[DEVELOPMENT.md](DEVELOPMENT.md).
+
+The service does not require Docker.
 
 ## Packages
 
@@ -108,12 +112,13 @@ sudo chmod 750 /mnt/pihole-usb/airthings
 
 ## Build
 
-```sh
-make test
-make build
-```
+On Raspberry Pi, do not place `GOCACHE` or `GOMODCACHE` under `/tmp` because
+`/tmp` is tmpfs/RAM-backed. Use the USB drive instead:
 
-On Raspberry Pi, do not place GOCACHE or GOMODCACHE under /tmp because /tmp is tmpfs/RAM-backed. Use /mnt/pihole-usb/airthings/cache instead.
+```sh
+make CACHE_ROOT=/mnt/pihole-usb/airthings/cache test
+make CACHE_ROOT=/mnt/pihole-usb/airthings/cache build
+```
 
 The web build is copied into `web/dist`, and the Go service serves that directory.
 
@@ -134,6 +139,19 @@ database_path = "/mnt/pihole-usb/airthings/airthings.db"
 ```
 
 ## Install Files And Service
+
+After the service user, data directory, and config file are ready, the local
+deployment script can build and install the service on the Pi:
+
+```sh
+scripts/deploy-local.sh
+```
+
+The script does not overwrite `/etc/airthings-monitor/config.toml`. It builds
+first, then stops the service, installs the binary and frontend, refreshes the
+systemd unit, verifies it, and starts the service again.
+
+Manual installation steps are:
 
 ```sh
 sudo mkdir -p /opt/airthings-monitor

@@ -35,10 +35,22 @@ After downloading repository updates on the Pi, rebuild and redeploy the binary
 and frontend. Keep the Go build cache on the USB drive, not `/tmp`, to avoid
 RAM pressure during builds.
 
+The normal update path is:
+
 ```sh
 cd /path/to/airthings-monitor
 git pull --ff-only
-make build
+scripts/deploy-local.sh
+```
+
+The script does not overwrite `/etc/airthings-monitor/config.toml`.
+
+The manual workflow is:
+
+```sh
+cd /path/to/airthings-monitor
+git pull --ff-only
+make CACHE_ROOT=/mnt/pihole-usb/airthings/cache build
 sudo systemctl stop airthings.service
 sudo install -m 755 bin/airthings-server /opt/airthings-monitor/bin/airthings-server
 sudo rm -rf /opt/airthings-monitor/web/dist
