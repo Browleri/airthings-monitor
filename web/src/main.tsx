@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import type { PointerEvent } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
 
@@ -44,6 +45,18 @@ type ReadingsResponse = {
   points: Point[]
 }
 
+type BandLevel = 'good' | 'bad' | 'critical'
+
+type ThresholdBand = {
+  level: BandLevel
+  min?: number
+  max?: number
+}
+
+type ThresholdsResponse = {
+  metrics: Partial<Record<MetricKey, ThresholdBand[]>>
+}
+
 type RangeKey = '1h' | '24h' | '7d' | '30d'
 type MetricKey = 'co2' | 'voc' | 'temperature' | 'humidity' | 'pressure' | 'radon_short' | 'radon_long'
 
@@ -65,6 +78,7 @@ function App() {
   const [range, setRange] = useState<RangeKey>('24h')
   const [metric, setMetric] = useState<MetricKey>('co2')
   const [points, setPoints] = useState<Point[]>([])
+  const [thresholds, setThresholds] = useState<Partial<Record<MetricKey, ThresholdBand[]>>>({})
   const [error, setError] = useState<string>('')
 
   useEffect(() => {
@@ -93,6 +107,24 @@ function App() {
     return () => {
       cancelled = true
       window.clearInterval(timer)
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadThresholds() {
+      try {
+        const res = await fetch('/api/thresholds')
+        if (!res.ok) throw new Error('Threshold request failed')
+        const body = (await res.json()) as ThresholdsResponse
+        if (!cancelled) setThresholds(body.metrics ?? {})
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load thresholds')
+      }
+    }
+    loadThresholds()
+    return () => {
+      cancelled = true
     }
   }, [])
 
@@ -169,7 +201,7 @@ function App() {
             ))}
           </div>
         </div>
-        <LineChart points={points} unit={metrics[metric].unit} precision={metrics[metric].precision} />
+        <LineChart points={points} unit={metrics[metric].unit} precision={metrics[metric].precision} bands={thresholds[metric] ?? []} />
       </section>
 
       <section className="details">
@@ -194,47 +226,136 @@ function App() {
   )
 }
 
-function LineChart({ points, unit, precision }: { points: Point[]; unit: string; precision: number }) {
+function LineChart({ points, unit, precision, bands }: { points: Point[]; unit: string; precision: number; bands: ThresholdBand[] }) {
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
+
   if (points.length === 0) {
     return <div className="empty-chart">No samples in this range</div>
   }
 
-  const width = 720
-  const height = 260
-  const pad = 28
+  const width = 760
+  const height = 320
+  const pad = { top: 18, right: 24, bottom: 48, left: 58 }
+  const plotWidth = width - pad.left - pad.right
+  const plotHeight = height - pad.top - pad.bottom
   const values = points.map((p) => p.value)
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const span = max - min || 1
+  const finiteThresholds = bands.flatMap((band) => [band.min, band.max]).filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+  const rawMin = Math.min(...values, ...finiteThresholds)
+  const rawMax = Math.max(...values, ...finiteThresholds)
+  const yPadding = Math.max((rawMax - rawMin) * 0.08, 1)
+  const yMin = rawMin === rawMax ? rawMin - 1 : rawMin - yPadding
+  const yMax = rawMin === rawMax ? rawMax + 1 : rawMax + yPadding
+  const ySpan = yMax - yMin || 1
+  const times = points.map((point, index) => {
+    const timestamp = Date.parse(point.recorded_at)
+    return Number.isFinite(timestamp) ? timestamp : index
+  })
+  const timeMin = Math.min(...times)
+  const timeMax = Math.max(...times)
+  const timeSpan = timeMax - timeMin || 1
+  const xForTime = (time: number) => pad.left + ((time - timeMin) / timeSpan) * plotWidth
+  const yForValue = (value: number) => pad.top + plotHeight - ((value - yMin) / ySpan) * plotHeight
   const path = points
     .map((point, index) => {
-      const x = pad + (index / Math.max(points.length - 1, 1)) * (width - pad * 2)
-      const y = height - pad - ((point.value - min) / span) * (height - pad * 2)
+      const x = xForTime(times[index])
+      const y = yForValue(point.value)
       return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
     })
     .join(' ')
   const latest = points[points.length - 1]
+  const yTicks = makeTicks(yMin, yMax, 5)
+  const xTicks = makeTicks(timeMin, timeMax, Math.min(4, points.length))
+  const hoverPoint = hoverIndex === null ? null : points[hoverIndex]
+  const hoverTime = hoverIndex === null ? null : times[hoverIndex]
+  const hoverX = hoverTime === null ? null : xForTime(hoverTime)
+  const hoverY = hoverPoint === null ? null : yForValue(hoverPoint.value)
+
+  function onPointerMove(event: PointerEvent<SVGSVGElement>) {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const pointerX = ((event.clientX - rect.left) / rect.width) * width
+    let nearestIndex = 0
+    let nearestDistance = Number.POSITIVE_INFINITY
+    times.forEach((time, index) => {
+      const distance = Math.abs(xForTime(time) - pointerX)
+      if (distance < nearestDistance) {
+        nearestDistance = distance
+        nearestIndex = index
+      }
+    })
+    setHoverIndex(nearestIndex)
+  }
 
   return (
     <div className="chart-wrap">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Historical readings chart">
-        <line x1={pad} y1={pad} x2={pad} y2={height - pad} />
-        <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} />
-        <path d={path} />
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Historical readings chart" onPointerMove={onPointerMove} onPointerLeave={() => setHoverIndex(null)}>
+        {bands.map((band, index) => {
+          const bandMin = band.min ?? yMin
+          const bandMax = band.max ?? yMax
+          const visibleMin = Math.max(bandMin, yMin)
+          const visibleMax = Math.min(bandMax, yMax)
+          if (visibleMin >= visibleMax) return null
+          const y = yForValue(visibleMax)
+          const bandHeight = yForValue(visibleMin) - y
+          return <rect key={`${band.level}-${index}`} className={`chart-band ${band.level}`} x={pad.left} y={y} width={plotWidth} height={bandHeight} />
+        })}
+        {yTicks.map((tick) => {
+          const y = yForValue(tick)
+          return (
+            <g key={tick} className="chart-tick">
+              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} />
+              <text x={pad.left - 10} y={y} textAnchor="end" dominantBaseline="middle">
+                {tick.toFixed(precision)}
+              </text>
+            </g>
+          )
+        })}
+        {xTicks.map((tick) => {
+          const x = xForTime(tick)
+          return (
+            <g key={tick} className="chart-tick x-axis">
+              <line x1={x} y1={pad.top} x2={x} y2={height - pad.bottom} />
+              <text x={x} y={height - 18} textAnchor="middle">
+                {formatAxisDate(tick)}
+              </text>
+            </g>
+          )
+        })}
+        <line className="chart-axis" x1={pad.left} y1={pad.top} x2={pad.left} y2={height - pad.bottom} />
+        <line className="chart-axis" x1={pad.left} y1={height - pad.bottom} x2={width - pad.right} y2={height - pad.bottom} />
+        <path className="chart-line" d={path} />
+        {hoverPoint && hoverX !== null && hoverY !== null && (
+          <g className="chart-hover">
+            <line x1={hoverX} y1={pad.top} x2={hoverX} y2={height - pad.bottom} />
+            <circle cx={hoverX} cy={hoverY} r="5" />
+          </g>
+        )}
       </svg>
+      {hoverPoint && hoverX !== null && hoverY !== null && (
+        <div className="chart-tooltip" style={{ left: `${(hoverX / width) * 100}%`, top: `${(hoverY / height) * 100}%` }}>
+          <strong>
+            {hoverPoint.value.toFixed(precision)} {unit}
+          </strong>
+          <span>{formatHoverDate(hoverPoint.recorded_at)}</span>
+        </div>
+      )}
       <div className="chart-meta">
         <span>
-          Min {min.toFixed(precision)} {unit}
+          Min {Math.min(...values).toFixed(precision)} {unit}
         </span>
         <span>
           Latest {latest.value.toFixed(precision)} {unit}
         </span>
         <span>
-          Max {max.toFixed(precision)} {unit}
+          Max {Math.max(...values).toFixed(precision)} {unit}
         </span>
       </div>
     </div>
   )
+}
+
+function makeTicks(min: number, max: number, count: number) {
+  if (count <= 1 || min === max) return [min]
+  return Array.from({ length: count }, (_, index) => min + ((max - min) / (count - 1)) * index)
 }
 
 function formatValue(value: unknown, precision: number) {
@@ -249,6 +370,22 @@ function formatDate(value?: string | null) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
+  }).format(new Date(value))
+}
+
+function formatAxisDate(value: number) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(value))
+}
+
+function formatHoverDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short'
   }).format(new Date(value))
 }
 

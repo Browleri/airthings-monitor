@@ -166,6 +166,7 @@ h2 {
 
 .chart-wrap {
   width: 100%;
+  position: relative;
 }
 
 svg {
@@ -174,17 +175,80 @@ svg {
   display: block;
 }
 
-svg line {
-  stroke: #d8e0db;
+.chart-axis {
+  stroke: #b9c7c0;
   stroke-width: 2;
 }
 
-svg path {
+.chart-line {
   fill: none;
   stroke: #2477a3;
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.chart-band.good {
+  fill: #dff5e8;
+}
+
+.chart-band.bad {
+  fill: #fff3ce;
+}
+
+.chart-band.critical {
+  fill: #f9d6d5;
+}
+
+.chart-tick line {
+  stroke: #d8e0db;
+  stroke-width: 1;
+}
+
+.chart-tick.x-axis line {
+  stroke-dasharray: 3 5;
+}
+
+.chart-tick text {
+  fill: #586660;
+  font-size: 0.78rem;
+}
+
+.chart-hover line {
+  stroke: #24443b;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+
+.chart-hover circle {
+  fill: #ffffff;
+  stroke: #2477a3;
+  stroke-width: 3;
+}
+
+.chart-tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  min-width: 150px;
+  border: 1px solid #c9d6d0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgb(23 32 29 / 12%);
+  padding: 8px 10px;
+  color: #17201d;
+  pointer-events: none;
+  display: grid;
+  gap: 3px;
+  z-index: 1;
+}
+
+.chart-tooltip strong {
+  font-size: 0.95rem;
+}
+
+.chart-tooltip span {
+  color: #64706b;
+  font-size: 0.82rem;
 }
 
 .chart-meta {
