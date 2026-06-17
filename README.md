@@ -43,6 +43,30 @@ Verified sensor details:
 - Measurements characteristic UUID:
   `b42e2a68-ade7-11e4-89d3-123b93f75cba`
 
+## Features
+
+**Dashboard**
+
+- Seven metric cards (CO2, VOC, temperature, humidity, pressure, radon short-term
+  and long-term) with live values, trend arrows, and threshold colour coding.
+- Air quality badge in the header summarises the worst current threshold breach
+  across all metrics as Good / Fair / Poor.
+- Interactive line chart for each metric with configurable time range
+  (1 h, 24 h, 7 d, 30 d), threshold band overlays, hover details, and
+  min / avg / max summary drawn from the database.
+- Temperature unit toggle (°C / °F) stored in the browser.
+- Dark mode with automatic system-preference detection and a manual override
+  toggle stored in the browser.
+- Radon cards show WHO and EU reference values inline.
+
+**Notifications**
+
+- Optional push notifications via [ntfy.sh](https://ntfy.sh) or a self-hosted
+  ntfy server. Notifications fire when a metric crosses a threshold band boundary
+  (good → bad → critical) and on recovery. A configurable cooldown prevents
+  repeat notifications while a metric stays in the same band.
+- Subscribe to the configured topic in the ntfy mobile app on any device.
+
 ## Quick Start
 
 For Debian/Ubuntu development, start with
@@ -115,6 +139,20 @@ Graph threshold bands are configured in the `[thresholds]` section. Defaults
 are included for CO2, VOC, temperature, humidity, and radon. Pressure is
 intentionally omitted because it is useful trend data rather than a direct
 good/bad/critical indoor-air quality metric.
+
+Push notifications are configured in the optional `[notifications]` section:
+
+```toml
+[notifications]
+ntfy_url = "https://ntfy.sh/your-unique-topic"
+notify_cooldown = "1h"
+```
+
+Set `ntfy_url` to any ntfy-compatible topic URL. Leave the section absent or
+`ntfy_url` empty to disable notifications. Subscribe to the topic in the ntfy
+mobile app to receive alerts. The `notify_cooldown` (default 1 h) is the
+minimum gap between repeated notifications for the same metric when it stays
+in the same level; escalations (bad → critical) are always sent immediately.
 
 ## API
 

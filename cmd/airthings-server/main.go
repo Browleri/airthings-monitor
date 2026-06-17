@@ -15,6 +15,7 @@ import (
 	"github.com/browler/airthings-monitor/internal/config"
 	"github.com/browler/airthings-monitor/internal/db"
 	"github.com/browler/airthings-monitor/internal/httpapi"
+	"github.com/browler/airthings-monitor/internal/notify"
 	"github.com/browler/airthings-monitor/internal/scheduler"
 )
 
@@ -58,6 +59,15 @@ func main() {
 	if cfg.RetentionDays > 0 {
 		retention = time.Duration(cfg.RetentionDays) * 24 * time.Hour
 	}
+
+	var alertEval func(string, float64) string
+	var notifier scheduler.Notifier
+	if cfg.Notifications.NtfyURL != "" {
+		alertEval = cfg.Thresholds.Evaluator()
+		notifier = notify.NewNtfy(cfg.Notifications.NtfyURL)
+		logger.Info("notifications enabled", "ntfy_url", cfg.Notifications.NtfyURL)
+	}
+
 	poller := scheduler.NewPoller(sensor, store, scheduler.PollerConfig{
 		PollEvery: cfg.PollInterval,
 		RetryJitter: scheduler.RetryJitter{
@@ -69,8 +79,11 @@ func main() {
 			Environment: cfg.EnvironmentInterval,
 			Radon:       cfg.RadonInterval,
 		},
-		Retention:    retention,
-		CleanupEvery: cfg.RetentionCleanupInterval,
+		Retention:      retention,
+		CleanupEvery:   cfg.RetentionCleanupInterval,
+		AlertEval:      alertEval,
+		Notifier:       notifier,
+		NotifyCooldown: cfg.Notifications.NotifyCooldown,
 	}, logger)
 
 	api := httpapi.New(store, poller, logger, httpapi.Options{

@@ -30,6 +30,17 @@ sqlite_busy_timeout = "5s"
 retention_days = 400
 retention_cleanup_interval = "24h"
 
+# Push notifications via ntfy.sh (optional).
+# Set ntfy_url to a topic URL to enable. Subscribe to the topic in the ntfy
+# mobile app to receive alerts when any metric crosses a threshold band.
+# ntfy.sh is a free public service; substitute a self-hosted URL if preferred.
+# notify_cooldown controls the minimum time between repeated notifications for
+# the same metric (escalations bypass the cooldown).
+#
+# [notifications]
+# ntfy_url = "https://ntfy.sh/your-unique-topic"
+# notify_cooldown = "1h"
+
 # Thresholds drive the frontend graph bands. Pressure is intentionally omitted:
 # it is useful trend data, but not directly a good/bad/critical indoor-air
 # quality metric.

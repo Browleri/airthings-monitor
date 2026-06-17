@@ -10,6 +10,11 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+type Notifications struct {
+	NtfyURL        string        `toml:"ntfy_url"`
+	NotifyCooldown time.Duration `toml:"notify_cooldown"`
+}
+
 type Config struct {
 	SensorAddress            string        `toml:"sensor_address"`
 	SensorMode               string        `toml:"sensor_mode"`
@@ -36,6 +41,7 @@ type Config struct {
 	RetentionDays            int           `toml:"retention_days"`
 	RetentionCleanupInterval time.Duration `toml:"retention_cleanup_interval"`
 	Thresholds               Thresholds    `toml:"thresholds"`
+	Notifications            Notifications `toml:"notifications"`
 }
 
 type Thresholds map[string][]ThresholdBand
@@ -73,6 +79,9 @@ func Defaults() Config {
 		RetentionDays:            400,
 		RetentionCleanupInterval: 24 * time.Hour,
 		Thresholds:               defaultThresholds(),
+		Notifications: Notifications{
+			NotifyCooldown: time.Hour,
+		},
 	}
 }
 
@@ -137,6 +146,9 @@ func (c Config) Validate() error {
 	if err := c.Thresholds.Validate(); err != nil {
 		return err
 	}
+	if c.Notifications.NtfyURL != "" && c.Notifications.NotifyCooldown <= 0 {
+		return errors.New("notifications.notify_cooldown must be positive")
+	}
 
 	journal := strings.ToUpper(c.SQLiteJournalMode)
 	if journal != "WAL" {
@@ -171,6 +183,28 @@ func (t Thresholds) Validate() error {
 		}
 	}
 	return nil
+}
+
+// Evaluator returns a function that maps a metric value to its threshold level.
+// A band matches when the value is within [min, max). Returns "good" when no
+// band matches or the metric has no configured thresholds.
+func (t Thresholds) Evaluator() func(metric string, value float64) string {
+	return func(metric string, value float64) string {
+		bands, ok := t[metric]
+		if !ok {
+			return "good"
+		}
+		for _, band := range bands {
+			if band.Min != nil && value < *band.Min {
+				continue
+			}
+			if band.Max != nil && value >= *band.Max {
+				continue
+			}
+			return band.Level
+		}
+		return "good"
+	}
 }
 
 func defaultThresholds() Thresholds {
