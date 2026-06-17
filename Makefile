@@ -3,7 +3,8 @@ BIN_DIR := bin
 CONFIG ?= config.example.toml
 GO ?= go
 
-CACHE_ROOT ?= /mnt/pihole-usb/airthings/cache
+# On Raspberry Pi, set this to /mnt/pihole-usb/airthings/cache.
+CACHE_ROOT ?= $(CURDIR)/cache
 GOCACHE ?= $(CACHE_ROOT)/go-build
 GOMODCACHE ?= $(CACHE_ROOT)/go-mod
 GOFLAGS ?= -p 1
@@ -24,14 +25,14 @@ build: web-build
 	$(GOENV) $(GO) build $(GOFLAGS) -o $(BIN_DIR)/$(APP) ./cmd/airthings-server
 
 web-build:
-	cd web && npm install && npm run build
+	cd web && npm ci && npm run build
 
 run: prepare-cache
 	$(GOENV) $(GO) run $(GOFLAGS) ./cmd/airthings-server -config $(CONFIG)
 
 lint: prepare-cache
 	$(GOENV) $(GO) vet $(GOFLAGS) ./...
-	cd web && npm install && npm run typecheck
+	cd web && npm ci && npm run typecheck
 
 clean:
 	rm -rf $(BIN_DIR) web/dist

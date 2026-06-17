@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-go test ./...
+make test
 
 if [ -d web/node_modules ]; then
   (cd web && npm run typecheck)
