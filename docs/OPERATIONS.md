@@ -43,7 +43,10 @@ git pull --ff-only
 scripts/deploy-local.sh
 ```
 
-The script does not overwrite `/etc/airthings-monitor/config.toml`.
+The script applies repository-local `config.toml` to
+`/etc/airthings-monitor/config.toml` after a successful build, backing up the
+previous live config. Keep the repo-local config production-safe before running
+it. Set `APPLY_CONFIG=0` to leave the live config untouched.
 
 The manual workflow is:
 
@@ -65,16 +68,18 @@ sudo systemctl start airthings.service
 sudo systemctl status airthings.service
 ```
 
-If `config.example.toml` changed, compare it with the live config before
-restarting:
+If `config.example.toml` changed, compare it with the repo-local config before
+deploying:
 
 ```sh
-diff -u config.example.toml /etc/airthings-monitor/config.toml
-sudoedit /etc/airthings-monitor/config.toml
+diff -u config.example.toml config.toml
+$EDITOR config.toml
 ```
 
-Do not blindly overwrite `/etc/airthings-monitor/config.toml`; it contains the
-local database path, listen address, and tuning values for this Pi.
+Do not blindly deploy a local development config to the Pi. The deploy script
+refuses `sensor_mode = "mock"` and database paths outside
+`/mnt/pihole-usb/airthings`, but you should still review listen address,
+thresholds, and notification settings before deploying.
 
 ## Logging
 

@@ -126,10 +126,8 @@ The web build is copied into `web/dist`, and the Go service serves that director
 
 ```sh
 sudo mkdir -p /etc/airthings-monitor
-sudo cp config.example.toml /etc/airthings-monitor/config.toml
-sudo chown root:airthings /etc/airthings-monitor/config.toml
-sudo chmod 640 /etc/airthings-monitor/config.toml
-sudoedit /etc/airthings-monitor/config.toml
+cp config.example.toml config.toml
+$EDITOR config.toml
 ```
 
 Keep `database_path` on the USB drive, for example:
@@ -137,6 +135,11 @@ Keep `database_path` on the USB drive, for example:
 ```toml
 database_path = "/mnt/pihole-usb/airthings/airthings.db"
 ```
+
+Keep `sensor_mode = "ble"` for the Pi. `scripts/deploy-local.sh` installs this
+repository-local `config.toml` to `/etc/airthings-monitor/config.toml`, backs up
+the previous live config, and refuses to install a config that uses
+`sensor_mode = "mock"` or a database path outside `/mnt/pihole-usb/airthings`.
 
 ## Install Files And Service
 
@@ -147,9 +150,11 @@ deployment script can build and install the service on the Pi:
 scripts/deploy-local.sh
 ```
 
-The script does not overwrite `/etc/airthings-monitor/config.toml`. It builds
-first, then stops the service, installs the binary and frontend, refreshes the
-systemd unit, verifies it, and starts the service again.
+The script builds first, backs up the current live config, installs
+repository-local `config.toml` to `/etc/airthings-monitor/config.toml`, then
+stops the service, installs the binary and frontend, refreshes the systemd unit,
+verifies it, and starts the service again. Set `APPLY_CONFIG=0` to leave the
+live config untouched.
 
 Manual installation steps are:
 
